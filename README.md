@@ -1,3 +1,11 @@
+# My revisions:
+
+## 2021.06.12
+- switch from SMTP to mailgun api
+- 2to3 print()
+- Regex match can recognize as of and on
+
+
 # USCIS Case Status Polling
 
 This is a simple python script to poll USCIS case status and optionally generate email alert on status change.

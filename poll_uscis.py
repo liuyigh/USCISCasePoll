@@ -9,25 +9,13 @@ import os
 import sys
 import os.path
 import re
-from email.MIMEMultipart import MIMEMultipart
-from email.MIMEBase import MIMEBase
-from email.MIMEText import MIMEText
-from email.utils import COMMASPACE, formatdate
-from email import Encoders
 from optparse import OptionParser
 from datetime import datetime, date
+import apikey
 
 STATUS_OK = 0
 STATUS_ERROR = -1
 FILENAME_LASTSTATUS = os.path.join(sys.path[0], "LAST_STATUS_{0}.txt")
-
-# ----------------- SETTINGS -------------------
-# set up your email sender here
-# example settings: (if you use gmail)
-# email: myname@gmail.com
-# password: xxxx
-# smtpserver: smtp.gmail.com:587
-EMAIL_NOTICE_SENDER = {"email": "", "password": "", "smtpserver": ""}
 
 
 def poll_optstatus(casenumber):
@@ -65,45 +53,23 @@ def poll_optstatus(casenumber):
     return (code, status, details)
 
 
-def send_mail(sentfrom,
-              to,
+def send_mail(to,
               subject="nil",
-              text="",
-              files=[],
-              server=EMAIL_NOTICE_SENDER['smtpserver'],
-              user=EMAIL_NOTICE_SENDER['email'],
-              password=EMAIL_NOTICE_SENDER['password']):
-    "send email to a list of receivers"
-    assert type(to) == list
-    assert type(files) == list
-    # get email settings
-    if not (server and user and password):
-        raise LookupError("Invalid email sending settings")
-    msg = MIMEMultipart()
-    msg['From'] = sentfrom
-    msg['To'] = COMMASPACE.join(to)
-    msg['Date'] = formatdate(localtime=True)
-    msg['Subject'] = subject
-
-    msg.attach(MIMEText(text))
-
-    for f in files:
-        part = MIMEBase('application', "octet-stream")
-        part.set_payload(open(f, 'rb').read())
-        Encoders.encode_base64(part)
-        part.add_header('Content-Disposition',
-                        'attachment; filename="%s"' % os.path.basename(f))
-        msg.attach(part)
+              text=""):
     try:
-        smtp_s = smtplib.SMTP(server)
-        smtp_s.ehlo()
-        smtp_s.starttls()
-        smtp_s.login(user, password)
-        smtp_s.sendmail(sentfrom, to, msg.as_string())
-        smtp_s.close()
-        print "successfully sent the mail !"
+        requests.post(
+            "https://api.mailgun.net/v3/mg.gapdb.com/messages",
+            auth=("api", apikey.mgkey),
+            data={
+                "from": "USCIS Bot <we@mg.gapdb.com>",
+                "to": to,
+                "subject": subject,
+                "text": text,
+            },
+        )
+        print("successfully sent the mail !")
     except:
-        print 'failed to send a mail '
+        print('failed to send a mail ')
 
 
 def on_status_fetch(status, casenumber):
@@ -139,9 +105,9 @@ def on_status_fetch(status, casenumber):
 def main():
     def get_days_since_received(status_detail):
         "parse case status and computes number of days elapsed since case-received"
-        date_regex = re.compile(r'^On (\w+ +\d+, \d{4}), .*')
+        date_regex = re.compile(r'^(As of|On) (\w+ +\d+, \d{4}), .*')
         m = date_regex.match(status_detail)
-        datestr = m.group(1)
+        datestr = m.group(2)
         if not datestr:
             return -1
         recv_date = datetime.strptime(datestr, "%B %d, %Y").date()
@@ -181,7 +147,7 @@ def main():
     # poll status
     code, status, detail = poll_optstatus(casenumber)
     if code == STATUS_ERROR:
-        print "The case number %s is invalid." % casenumber
+        print("The case number %s is invalid." % casenumber)
         return
     # report format
     report_format = ("-------  Your USCIS Case [{0}]---------"
@@ -198,13 +164,14 @@ def main():
          "Current Timestamp: %s " % datetime.now().strftime("%Y-%m-%d %H:%M")])
     if opts.detailOn:
         report = '\n'.join((report, "\nDetail:\n\n%s" % detail))
+    report = "https://egov.uscis.gov/casestatus/mycasestatus.do?appReceiptNum={}\n\n".format(casenumber) + report
     # console output
-    print report
+    print(report)
     # email notification on status change
     if opts.receivers and changed:
         recv_list = opts.receivers.split(',')
         subject = "Your USCIS Case %s Status Change Notice " % casenumber
-        send_mail("USCIS Case Status Notify", recv_list, subject, report)
+        send_mail(recv_list, subject, report)
 
 
 if __name__ == '__main__':
