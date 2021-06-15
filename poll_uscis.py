@@ -58,10 +58,10 @@ def send_mail(to,
               text=""):
     try:
         requests.post(
-            "https://api.mailgun.net/v3/mg.gapdb.com/messages",
-            auth=("api", apikey.mgkey),
+            "https://api.mailgun.net/v3/<mg.yourdomain.com>/messages", ## change to your mailgun info
+            auth=("api", apikey.mgkey), ## mailgun api
             data={
-                "from": "USCIS Bot <we@mg.gapdb.com>",
+                "from": "USCIS Bot <mail@mg.yourdomain.com>", ## change to your mailgun info
                 "to": to,
                 "subject": subject,
                 "text": text,
