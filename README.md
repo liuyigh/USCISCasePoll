@@ -1,9 +1,9 @@
 # My revisions:
 
-## 2021.06.12
+## 2021.06.12 My Revision
 - switch from SMTP to mailgun api
-- 2to3 print()
-- Regex match can recognize as of and on
+- Python3 2to3 print()
+- Regex match can recognize both `as of` and `on`
 
 
 # USCIS Case Status Polling
